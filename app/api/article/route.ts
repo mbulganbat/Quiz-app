@@ -1,6 +1,17 @@
+import { auth } from "@clerk/nextjs/server"
+
+import { failureResponse } from "@/lib/api-error"
 import { generate } from "@/lib/gemini"
 
+export const maxDuration = 60
+
 export async function POST(request: Request) {
+  const { userId } = await auth()
+
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   let body: { title?: unknown; content?: unknown }
 
   try {
@@ -35,9 +46,12 @@ export async function POST(request: Request) {
     return Response.json({ title, content, summary })
   } catch (error) {
     console.error("Failed to summarize article", error)
-    return Response.json(
-      { error: "Failed to summarize the article" },
-      { status: 502 }
+
+    const { error: message, status } = failureResponse(
+      error,
+      "Failed to summarize the article"
     )
+
+    return Response.json({ error: message }, { status })
   }
 }

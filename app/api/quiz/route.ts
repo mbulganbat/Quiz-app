@@ -1,3 +1,6 @@
+import { auth } from "@clerk/nextjs/server"
+
+import { failureResponse } from "@/lib/api-error"
 import { generate } from "@/lib/gemini"
 import type { QuizQuestion } from "@/lib/types"
 
@@ -37,7 +40,15 @@ function parseQuiz(raw: string): QuizQuestion[] {
   return questions
 }
 
+export const maxDuration = 60
+
 export async function POST(request: Request) {
+  const { userId } = await auth()
+
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   let body: { title?: unknown; content?: unknown }
 
   try {
@@ -72,9 +83,12 @@ export async function POST(request: Request) {
     return Response.json({ questions: parseQuiz(raw) })
   } catch (error) {
     console.error("Failed to generate quiz", error)
-    return Response.json(
-      { error: "Failed to generate the quiz" },
-      { status: 502 }
+
+    const { error: message, status } = failureResponse(
+      error,
+      "Failed to generate the quiz"
     )
+
+    return Response.json({ error: message }, { status })
   }
 }
